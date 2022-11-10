@@ -31,7 +31,7 @@ async function run() {
             res.send(service)
         })
 
-        app.post('/allServices', async(req, res) =>{
+        app.post('/allServices', async (req, res) => {
             const service = req.body;
             const result = await serviceCollection.insertOne(service)
             res.send(result);
@@ -48,7 +48,33 @@ async function run() {
 
         //Reviews
 
-        app.get('/myReviews', async(req, res) => {
+        //update
+        app.get('/reviews/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const review = await reviewCollection.findOne(query);
+            res.send(review)
+        })
+
+        app.put('/reviews/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const review = req.body;
+            const option = { upsert: true }
+            const updatedReview = {
+                $set: {
+                    message: review.message
+                }
+            }
+            const result = await reviewCollection.updateOne(filter, updatedReview, option)
+            res.send(result)
+
+        })
+
+
+        //update
+
+        app.get('/myReviews', async (req, res) => {
             let query = {};
             if (req.query.email) {
                 query = {
@@ -60,8 +86,6 @@ async function run() {
             res.send(reviews)
         })
 
-
-
         app.get('/reviews', async (req, res) => {
             let query = {};
             if (req.query.review) {
@@ -69,7 +93,7 @@ async function run() {
                     review: req.query.review
                 }
             }
-            const cursor = reviewCollection.find(query)
+            const cursor = reviewCollection.find(query).sort({"_id":-1})
             const reviews = await cursor.toArray();
             res.send(reviews)
         })
@@ -80,9 +104,9 @@ async function run() {
             res.send(result);
         })
 
-        app.delete('/reviews/:id', async(req, res) => {
+        app.delete('/reviews/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: ObjectId(id)}
+            const query = { _id: ObjectId(id) }
             const result = await reviewCollection.deleteOne(query)
             res.send(result)
         })
