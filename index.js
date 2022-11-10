@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 5000
@@ -12,10 +14,45 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@clu
 
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+
+
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        res.status(401).send({ message: 'unauthorized access' })
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+        if (err) {
+            res.status(403).send({ message: 'forbidden access' })
+        }
+        req.decoded = decoded
+        next();
+    })
+
+}
+
+
+
+
+
+
+
+
 async function run() {
     try {
         const serviceCollection = client.db('wildlifePhotography').collection('services')
         const reviewCollection = client.db('wildlifePhotography').collection('reviews');
+
+
+        //jwt
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h'})
+            res.send({token})
+        })
+
+        //jwt
 
         app.get('/services', async (req, res) => {
             const query = {};
@@ -74,7 +111,12 @@ async function run() {
 
         //update
 
-        app.get('/myReviews', async (req, res) => {
+        app.get('/myReviews', verifyJWT, async (req, res) => {
+            const decoded = req.decoded;
+            console.log(decoded);
+            if (decoded?.email !== req.query?.email) {
+                res.status(403).send({ message: 'unauthorized access' })
+            }
             let query = {};
             if (req.query.email) {
                 query = {
@@ -93,7 +135,7 @@ async function run() {
                     review: req.query.review
                 }
             }
-            const cursor = reviewCollection.find(query).sort({"_id":-1})
+            const cursor = reviewCollection.find(query).sort({ "_id": -1 })
             const reviews = await cursor.toArray();
             res.send(reviews)
         })
